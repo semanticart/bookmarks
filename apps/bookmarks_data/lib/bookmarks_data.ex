@@ -1,0 +1,2 @@
+defmodule BookmarksData do
+end

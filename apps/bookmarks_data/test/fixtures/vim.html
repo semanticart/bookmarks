@@ -1,0 +1,541 @@
+
+<!DOCTYPE HTML>
+<html>
+<head>
+	<script data-cfasync="false" type="text/javascript" src="//use.typekit.net/axj3cfp.js"></script>
+	<script data-cfasync="false" type="text/javascript">try{Typekit.load();}catch(e){}</script>
+	<meta charset="utf-8">
+	<title>Let's write a basic Vim plugin  | semantic art</title>
+
+<meta name="author" content="Jeffrey Chupp"> 
+
+<meta name="description" content="personal weblog of jeffrey chupp"> <meta name="keywords" content="">
+
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<link href="/atom.xml" rel="alternate" title="semantic art" type="application/atom+xml">
+	<link rel="canonical" href="">
+	<link href="/favicon.png" rel="shortcut icon">
+	<link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+	<!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+	<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" type="text/css" media="screen" />
+<script type="text/javascript" src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script language="Javascript" type="text/javascript">
+$(document).ready(
+  function() {
+    (function($) {
+      $(".fancybox[data-content-id]").each(function() {
+        this.href = $(this).data('content-id');
+      });
+      $(".fancybox").fancybox({
+        beforeLoad: function() {
+          var el, 
+              id = $(this.element).data('title-id');
+
+          if (id) {
+            el = $('#' + id);
+
+            if (el.length) {
+              this.title = el.html();
+            }
+          }
+          if ($(this).data('content')) {
+            this.content = $(this).data('content');
+          }
+        },
+        helpers: {
+          title: {
+            type: 'inside'
+          }
+        }
+      });
+    })(jQuery);
+  }
+);
+</script>
+	
+</head>
+
+
+<body>
+	<header id="header" class="inner"><h1><a href="/">semantic art</a></h1>
+<h4>code should say something</h4>
+<nav id="main-nav"><ul>
+	<li><a href="/">Blog</a></li>
+	<li><a href="/archives">Archive</a></li>
+</ul>
+</nav>
+<nav id="mobile-nav">
+	<div class="alignleft menu">
+		<a class="button">Menu</a>
+		<div class="container"><ul>
+	<li><a href="/">Blog</a></li>
+	<li><a href="/archives">Archive</a></li>
+</ul>
+</div>
+	</div>
+	<div class="alignright search">
+		<a class="button"></a>
+		<div class="container">
+			<form action="http://google.com/search" method="get">
+				<input type="text" name="q" results="0">
+				<input type="hidden" name="q" value="site:blog.semanticart.com/blog">
+			</form>
+		</div>
+	</div>
+</nav>
+
+
+</header>
+
+	<div id="content" class="inner"><article class="post">
+	<h2 class="title">Let's Write a Basic Vim Plugin</h2>
+	<div class="entry-content"><p>Over the holidays, I finally got around to reading Steve Losh&rsquo;s wonderful <em><a href="http://learnvimscriptthehardway.stevelosh.com">Learn Vimscript the Hard Way</a></em>. I liked it so much that I bought a copy after reading it for free online.</p>
+
+<p>In an effort to put what I&rsquo;ve learned into practice, I&rsquo;m going to walk through creating a simple plugin to evaluate Postgres queries and see the results immediately in Vim. I hope you&rsquo;ll follow along, and please feel free to substitute your database of choice.</p>
+
+<p>Here&rsquo;s our plugin in action:</p>
+
+<p><img src="/images/evaluate-query.gif" alt="" /></p>
+
+<h2>Background</h2>
+
+<p>Postgres is great. The CLI, <code>psql</code>, thankfully has <code>\e</code> to let you edit your queries in <code>$EDITOR</code>. You&rsquo;re probably fine just using <code>\e</code> (just remember to use the block comment style or your comments will be eaten by a grue).</p>
+
+<p>But if I&rsquo;m editing my queries in Vim anyway, why not also evaluate my queries from there? Sure, Vim is not an operating system (see <code>:help design-not</code>), but when we can see the results of our queries alongside our sql, we can create a tighter feedback loop. This integration opens up more possibilities for later (e.g. adding a mapping to describe the table under the cursor). It also gives us all of Vim for browsing the results (e.g. find, copy/paste, etc.).</p>
+
+<p>To get us started, here&rsquo;s a sample sql query to look at data from <a href="http://www.hallofstats.com/">The Hall of Stats</a>. It is an intentionally trivial example, but stick with me. Bring your own sql query to get data from one of your local databases if you&rsquo;re following along.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='sql'><span class='line'><span class="c1">-- List first 10 players mentioned in articles</span>
+</span><span class='line'><span class="k">SELECT</span> <span class="n">articles_players</span><span class="p">.</span><span class="n">article_id</span><span class="p">,</span>
+</span><span class='line'>  <span class="n">players</span><span class="p">.</span><span class="n">first_name</span><span class="p">,</span>
+</span><span class='line'>  <span class="n">players</span><span class="p">.</span><span class="n">last_name</span>
+</span><span class='line'><span class="k">FROM</span> <span class="n">articles_players</span>
+</span><span class='line'><span class="k">JOIN</span> <span class="n">players</span> <span class="k">ON</span> <span class="n">players</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">articles_players</span><span class="p">.</span><span class="n">player_id</span>
+</span><span class='line'><span class="k">ORDER</span> <span class="k">BY</span> <span class="n">article_id</span> <span class="k">ASC</span>
+</span><span class='line'><span class="k">LIMIT</span> <span class="mi">10</span><span class="p">;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>It is easy enough to run a file with <code>psql</code> and see the results.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='sql'><span class='line'><span class="err">$</span> <span class="n">psql</span> <span class="n">hos_development</span> <span class="o">-</span><span class="n">f</span> <span class="n">test</span><span class="p">.</span><span class="k">sql</span>
+</span><span class='line'> <span class="n">article_id</span> <span class="o">|</span> <span class="n">first_name</span> <span class="o">|</span> <span class="n">last_name</span>
+</span><span class='line'><span class="c1">------------+------------+------------</span>
+</span><span class='line'>          <span class="mi">1</span> <span class="o">|</span> <span class="n">Bill</span>       <span class="o">|</span> <span class="n">Bergen</span>
+</span><span class='line'>          <span class="mi">1</span> <span class="o">|</span> <span class="n">Babe</span>       <span class="o">|</span> <span class="n">Ruth</span>
+</span><span class='line'>          <span class="mi">2</span> <span class="o">|</span> <span class="n">Ernie</span>      <span class="o">|</span> <span class="n">Banks</span>
+</span><span class='line'>          <span class="mi">2</span> <span class="o">|</span> <span class="n">Yogi</span>       <span class="o">|</span> <span class="n">Berra</span>
+</span><span class='line'>          <span class="mi">2</span> <span class="o">|</span> <span class="n">Bill</span>       <span class="o">|</span> <span class="n">Buckner</span>
+</span><span class='line'>          <span class="mi">2</span> <span class="o">|</span> <span class="n">Frank</span>      <span class="o">|</span> <span class="n">Chance</span>
+</span><span class='line'>          <span class="mi">2</span> <span class="o">|</span> <span class="n">Dave</span>       <span class="o">|</span> <span class="n">Concepcion</span>
+</span><span class='line'>          <span class="mi">2</span> <span class="o">|</span> <span class="n">Andre</span>      <span class="o">|</span> <span class="n">Dawson</span>
+</span><span class='line'>          <span class="mi">2</span> <span class="o">|</span> <span class="n">Julio</span>      <span class="o">|</span> <span class="n">Franco</span>
+</span><span class='line'>          <span class="mi">2</span> <span class="o">|</span> <span class="n">Bob</span>        <span class="o">|</span> <span class="n">Johnson</span>
+</span><span class='line'><span class="p">(</span><span class="mi">10</span> <span class="k">rows</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Getting started on the plugin</h2>
+
+<p>Our plugin will only have one file in it. In more complex plugins, you&rsquo;ll want to leverage autoloading, but we&rsquo;ll keep things simple here and keep all our code in one place.</p>
+
+<p>In our plugin directory we have a <code>ftplugin</code> folder. In that folder, we&rsquo;ll create a file named <code>sql.vim</code>. This code will be automatically evaluated when a sql file is loaded.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='sql'><span class='line'><span class="err">$</span> <span class="n">mkdir</span> <span class="o">-</span><span class="n">p</span> <span class="n">sql_runner</span><span class="p">.</span><span class="n">vim</span><span class="o">/</span><span class="n">ftplugin</span>
+</span><span class='line'><span class="err">$</span> <span class="n">touch</span> <span class="n">sql_runner</span><span class="p">.</span><span class="n">vim</span><span class="o">/</span><span class="n">ftplugin</span><span class="o">/</span><span class="k">sql</span><span class="p">.</span><span class="n">vim</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Before we start coding away, we need to make Vim aware of our plugin. Add the following to your vimrc file (substituting the path to your plugin directory on disk):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='vim'><span class='line'><span class="k">set</span> <span class="nb">runtimepath</span><span class="p">+=,</span><span class="sr">/some/</span>absolute<span class="sr">/path/</span><span class="k">to</span>/sql_runner.<span class="k">vim</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Perfect. Now in <code>sql_runner.vim/ftplugin/sql.vim</code> we set up the default mapping for our plugin.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='vim'><span class='line'><span class="nb">nnoremap</span> <span class="p">&lt;</span>buffer<span class="p">&gt;</span> <span class="p">&lt;</span>localleader<span class="p">&gt;</span><span class="k">r</span> :<span class="k">call</span> RunSQLFile<span class="p">()&lt;</span><span class="k">cr</span><span class="p">&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Note: There are good reasons to <em>not</em> provide default mappings in your plugin or to at least allow users to opt-out of your default mappings, but, again, we&rsquo;re keeping things simple.</p>
+
+<p>We&rsquo;re using <code>&lt;localleader&gt;</code> for the mapping (check <code>:help localleader</code> for insight). If you haven&rsquo;t remapped <code>&lt;localleader&gt;</code> then it is still the default: <code>\</code> (which makes this keybinding <code>\r</code>)</p>
+
+<p>Let&rsquo;s start implementing <code>RunSQLFile</code> very naively at first:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='vim'><span class='line'><span class="k">function</span><span class="p">!</span> RunSQLFile<span class="p">()</span>
+</span><span class='line'>  execute <span class="s1">&#39;!psql hos_development -f &#39;</span> . expand<span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">)</span>
+</span><span class='line'><span class="k">endfunction</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Save that and open up a sql file. Now press <code>&lt;localleader&gt;r</code></p>
+
+<p>Sure enough, this shows the output (until you hit enter to continue). Not a bad start, but we can already see a problem. We&rsquo;ve hard-coded <code>hos_development</code> as the database name :( We&rsquo;re also not passing in a user or password to my <code>psql</code> command. That&rsquo;s OK on my machine since my user already has permissions on that database, but it isn&rsquo;t ideal to edit the plugin itself every time we want to change databases or specify permissions. Let&rsquo;s go ahead and make this more flexible.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='vim'><span class='line'><span class="k">function</span><span class="p">!</span> RunSQLFile<span class="p">()</span>
+</span><span class='line'>  <span class="k">let</span> <span class="k">l</span>:cmd <span class="p">=</span> <span class="k">g</span>:sql_runner_cmd . <span class="s1">&#39; -f &#39;</span> . expand<span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">)</span>
+</span><span class='line'>  execute <span class="s1">&#39;!&#39;</span> . <span class="k">l</span>:cmd
+</span><span class='line'><span class="k">endfunction</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This allows us to specify the global variable <code>g:sql_runner_cmd</code> in our vimrc (or define/redefine it on the fly). I&rsquo;m adding <code>let g:sql_runner_cmd = 'psql hos_development'</code> to my vimrc (and <code>:source</code>ing it).</p>
+
+<p>Because our code is in a file in <code>ftplugin</code>, you should be able to reload the plugin after saving changes by editing your sql file again (<code>:e</code>). Give the command another try. The output should be the same (except that you won&rsquo;t see the command itself echoed back).</p>
+
+<p>Now that our plugin is a little more flexible, what can we do about displaying the results in a split? Step one is to read the <code>psql</code> output into a variable.</p>
+
+<p>We&rsquo;ll replace the <code>execute '!' ...</code> call with</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='vim'><span class='line'><span class="k">let</span> <span class="k">l</span>:results <span class="p">=</span> system<span class="p">(</span><span class="k">l</span>:cmd<span class="p">)</span>
+</span><span class='line'>echo <span class="k">l</span>:results
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We&rsquo;re still echo-ing the results out like before, but now we have them in-memory before we echo to the screen. Borrowing liberally from chapter 52 of <em><a href="http://learnvimscriptthehardway.stevelosh.com/chapters/52.html">Learn Vimscript the Hard Way</a></em>, let&rsquo;s dump our results into a new split.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='vim'><span class='line'><span class="k">function</span><span class="p">!</span> RunSQLFile<span class="p">()</span>
+</span><span class='line'>  <span class="k">let</span> <span class="k">l</span>:cmd <span class="p">=</span> <span class="k">g</span>:sql_runner_cmd . <span class="s1">&#39; -f &#39;</span> . expand<span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">let</span> <span class="k">l</span>:results <span class="p">=</span> systemlist<span class="p">(</span><span class="k">l</span>:cmd<span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">  &quot; Create a split with a meaningful name</span>
+</span><span class='line'>  <span class="k">let</span> <span class="k">l</span>:name <span class="p">=</span> <span class="s1">&#39;__SQL_Results__&#39;</span>
+</span><span class='line'>  execute <span class="s1">&#39;vsplit &#39;</span> . <span class="k">l</span>:name
+</span><span class='line'>
+</span><span class='line'><span class="c">  &quot; Insert the results.</span>
+</span><span class='line'>  <span class="k">call</span> append<span class="p">(</span><span class="m">0</span><span class="p">,</span> <span class="k">l</span>:results<span class="p">)</span>
+</span><span class='line'><span class="k">endfunction</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We changed <code>system</code> to <code>systemlist</code> to simplify our append. This is pretty straightforward: We create a buffer with a name, it gets focus automatically, and we append our results to it.</p>
+
+<p>Re-open the sql file and run our mapping. It works. Now run our mapping again. Oof. It opens another split. That&rsquo;s a little tricky to fix (unless you&rsquo;ve already done the extra credit in the <em>Learn Vimscript the Hard Way</em> chapter linked above) so we&rsquo;ll deal with it in a bit. In the meantime, there are two easier issues to fix:</p>
+
+<ol>
+<li>re-running the command will append to the content from the previous run.</li>
+<li>the results buffer is a &ldquo;normal buffer&rdquo; so Vim will prompt you to save the results if you try to delete the buffer (<code>bd</code>) or close Vim. That&rsquo;s not ideal for a throw-away scratch buffer.</li>
+</ol>
+
+
+<p>We&rsquo;ll make a few changes and add the following lines above the <code>append</code> code:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='vim'><span class='line'><span class="c">  &quot; Clear out existing content</span>
+</span><span class='line'>  normal<span class="p">!</span> gg&quot;_dG
+</span><span class='line'>
+</span><span class='line'><span class="c">  &quot; Don&#39;t prompt to save the buffer</span>
+</span><span class='line'>  <span class="k">set</span> <span class="nb">buftype</span><span class="p">=</span>nofile
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>That&rsquo;s two problems solved. Now what about the unwanted additional split every time we run our command? The extra credit section in Losh&rsquo;s chapter gives us the hint to use <code>bufwinnr</code>.</p>
+
+<p>If you provide <code>bufwinnr</code> a buffer name, it returns the number for the first window associated with the buffer or <code>-1</code> if there&rsquo;s no match. Close and re-open Vim and we&rsquo;ll play with <code>bufwinnr</code>.</p>
+
+<p>Before running our command, evaluate <code>echo bufwinnr('__SQL_Results__')</code> and you&rsquo;ll see <code>-1</code>. Now use the mapping on a sql file and run <code>echo bufwinnr('__SQL_Results__')</code> again and you&rsquo;ll see <code>1</code> (or a greater number if you have more splits open). If you load a different buffer in the result split window or close the results split, you&rsquo;ll get <code>-1</code> again. What does this tell us? If we get a value other than <code>-1</code>, we know that our result buffer is already visible and we should re-use it rather than opening a new split. Making a few changes, our function ends up looking like this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+</pre></td><td class='code'><pre><code class='vim'><span class='line'><span class="k">function</span><span class="p">!</span> RunSQLFile<span class="p">()</span>
+</span><span class='line'>  <span class="k">let</span> <span class="k">l</span>:cmd <span class="p">=</span> <span class="k">g</span>:sql_runner_cmd . <span class="s1">&#39; -f &#39;</span> . expand<span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">let</span> <span class="k">l</span>:results <span class="p">=</span> systemlist<span class="p">(</span><span class="k">l</span>:cmd<span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">  &quot; Give our result buffer a meaningful name</span>
+</span><span class='line'>  <span class="k">let</span> <span class="k">l</span>:name <span class="p">=</span> <span class="s1">&#39;__SQL_Results__&#39;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">if</span> bufwinnr<span class="p">(</span><span class="k">l</span>:name<span class="p">)</span> <span class="p">==</span> <span class="m">-1</span>
+</span><span class='line'><span class="c">    &quot; Open a new split</span>
+</span><span class='line'>    execute <span class="s1">&#39;vsplit &#39;</span> . <span class="k">l</span>:name
+</span><span class='line'>  <span class="k">else</span>
+</span><span class='line'><span class="c">    &quot; Focus the existing window</span>
+</span><span class='line'>    execute bufwinnr<span class="p">(</span><span class="k">l</span>:name<span class="p">)</span> . <span class="s1">&#39;wincmd w&#39;</span>
+</span><span class='line'>  <span class="k">endif</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">  &quot; Clear out existing content</span>
+</span><span class='line'>  normal<span class="p">!</span> gg&quot;_dG
+</span><span class='line'>
+</span><span class='line'><span class="c">  &quot; Don&#39;t prompt to save the buffer</span>
+</span><span class='line'>  <span class="k">set</span> <span class="nb">buftype</span><span class="p">=</span>nofile
+</span><span class='line'>
+</span><span class='line'><span class="c">  &quot; Insert the results.</span>
+</span><span class='line'>  <span class="k">call</span> append<span class="p">(</span><span class="m">0</span><span class="p">,</span> <span class="k">l</span>:results<span class="p">)</span>
+</span><span class='line'><span class="k">endfunction</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Reload your sql file and try this a few times. It works!</p>
+
+<p>Not surprisingly, using the function for awhile reveals some room for improvement. As nice as it is to iterate on sql in one Vim split and see the results quickly in the other, it is a little annoying that the results buffer gets focus. I don&rsquo;t want to have to jump back to the sql buffer from the results window each time. This is solved by adding <code>execute 'wincmd p'</code> (previous window) to the bottom of the function.</p>
+
+<p>Finally, it is a bit of a pain to have to save my work before running the command each time. This is easily fixed by adding <code>silent update</code> to the top of the function. This will write the file if the content has changed.</p>
+
+<p>For completeness, here&rsquo;s the <a href="https://gist.github.com/semanticart/1a27c9da09e5e6eb3aa2d81c03a114f5">final version of the plugin</a>.</p>
+
+<p>Thanks for reading. <a href="mailto:jeff@semanticart.com">Let me know</a> if you have any requests for future posts on Vim plugins or any feedback on this post.</p>
+
+<p>That&rsquo;s probably enough for now, but read on if you want a quick detour and some suggested exercises.</p>
+
+<h2>A detour: do we need to persist the file?</h2>
+
+<p>Should evaluating the sql be tied to writing the file? Or is writing the file as part of evaluation an implementation detail? We <em>could</em> just pipe the contents of the current buffer to <code>psql</code>, but there&rsquo;s actually a good reason to evaluate the persisted file.</p>
+
+<p>Consider the following SQL:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='sql'><span class='line'><span class="c1">-- some comment</span>
+</span><span class='line'><span class="k">select</span> <span class="mi">1</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">-- another comment;</span>
+</span><span class='line'><span class="k">select</span> <span class="k">true</span><span class="p">,</span>
+</span><span class='line'>  <span class="k">false</span><span class="p">,</span>
+</span><span class='line'>  <span class="n">now</span><span class="p">(;</span> <span class="c1">-- note the syntax error here</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If you evaluate this file in <code>psql</code> with <code>-f</code>, you get the following:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='sql'><span class='line'><span class="err">$</span> <span class="n">psql</span> <span class="n">hos_development</span> <span class="o">-</span><span class="n">f</span> <span class="n">syntax_error</span><span class="p">.</span><span class="k">sql</span>
+</span><span class='line'> <span class="o">?</span><span class="k">column</span><span class="o">?</span>
+</span><span class='line'><span class="c1">----------</span>
+</span><span class='line'>        <span class="mi">1</span>
+</span><span class='line'><span class="p">(</span><span class="mi">1</span> <span class="k">row</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">psql</span><span class="p">:</span><span class="n">syntax_error</span><span class="p">.</span><span class="k">sql</span><span class="p">:</span><span class="mi">7</span><span class="p">:</span> <span class="n">ERROR</span><span class="p">:</span>  <span class="n">syntax</span> <span class="n">error</span> <span class="k">at</span> <span class="k">or</span> <span class="n">near</span> <span class="ss">&quot;;&quot;</span>
+</span><span class='line'><span class="n">LINE</span> <span class="mi">3</span><span class="p">:</span>   <span class="n">now</span><span class="p">(;</span>
+</span><span class='line'>              <span class="o">^</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Notice how it shows that the error occurred on line 7 (absolute to the file) and line 3 (relative to the problematic query). When you pipe the content in, you lose the absolute line number context.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='sql'><span class='line'><span class="err">$</span> <span class="n">cat</span> <span class="n">syntax_error</span><span class="p">.</span><span class="k">sql</span> <span class="o">|</span> <span class="n">psql</span> <span class="n">hos_development</span>
+</span><span class='line'> <span class="o">?</span><span class="k">column</span><span class="o">?</span>
+</span><span class='line'><span class="c1">----------</span>
+</span><span class='line'>        <span class="mi">1</span>
+</span><span class='line'><span class="p">(</span><span class="mi">1</span> <span class="k">row</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">ERROR</span><span class="p">:</span>  <span class="n">syntax</span> <span class="n">error</span> <span class="k">at</span> <span class="k">or</span> <span class="n">near</span> <span class="ss">&quot;;&quot;</span>
+</span><span class='line'><span class="n">LINE</span> <span class="mi">3</span><span class="p">:</span>   <span class="n">now</span><span class="p">(;</span>
+</span><span class='line'>              <span class="o">^</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If you evaluate a file, you&rsquo;ll get absolute line numbers regardless of how many queries deep your syntax error occurs on. That&rsquo;s more important to me than avoiding some unnecessary writes.</p>
+
+<p>If you really wanted to evaluate the buffer contents without saving, here&rsquo;s a few tips:</p>
+
+<ul>
+<li>As shown above, <code>psql</code> can read from standard input. <code>psql hos_development -f test.sql</code> can be rewritten as <code>cat test.sql | psql hos_development</code></li>
+<li>Vim&rsquo;s <code>systemlist</code> command lets you pass a second argument to be passed along to the command as stdin</li>
+<li>You can get the content of the current buffer with <code>getline(1, '$')</code></li>
+</ul>
+
+
+<p>That should give you enough to go on.</p>
+
+<h2>Suggested exercises</h2>
+
+<p>Add some code to allow users to skip the default mappings. You&rsquo;ll probably want to use a global variable like we did for <code>g:sql_runner_cmd</code></p>
+
+<p>Add a new mapping and function to describe the table under the cursor. I might cover this one in a future post.</p>
+</div>
+
+
+<div class="meta">
+	<div class="date">
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2017-01-05T09:00:00-05:00" pubdate data-updated="true">Jan 5<span>th</span>, 2017</time></div>
+	
+
+<div class="tags">
+
+	<a class='category' href='/blog/categories/vim/'>vim</a>
+
+</div>
+
+
+	
+</div></article>
+
+	<div class="share">
+	<div class="addthis_toolbox addthis_default_style ">
+	
+	
+	<a class="addthis_button_tweet"></a>
+	
+	
+<!---	<a class="addthis_counter addthis_pill_style"></a> --->
+	</div>
+  <script type="text/javascript" src="http://s7.addthis.com/js/250/addthis_widget.js#pubid="></script>
+</div>
+
+
+
+<section id="comment">
+    <h2 class="title">Comments</h2>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+</section>
+</div>
+	<footer id="footer" class="inner">Copyright &copy; 2017
+
+    Jeffrey Chupp
+
+<br>
+Powered by Octopress.
+</footer>
+	<script src="/javascripts/slash.js"></script>
+<script src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+	$('.fancybox').fancybox();
+})(jQuery);
+</script> <!-- Delete or comment this line to disable Fancybox -->
+
+
+<script type="text/javascript">
+      var disqus_shortname = 'semanticart';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://blog.semanticart.com/blog/blog/2017/01/05/lets-write-a-basic-vim-plugin/';
+        var disqus_url = 'http://blog.semanticart.com/blog/blog/2017/01/05/lets-write-a-basic-vim-plugin/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+	<script type="text/javascript">
+		var _gaq = _gaq || [];
+		_gaq.push(['_setAccount', 'UA-35446138-1']);
+		_gaq.push(['_trackPageview']);
+
+		(function() {
+			var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+			ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+			var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+		})();
+	</script>
+
+
+
+</body>
+</html>
