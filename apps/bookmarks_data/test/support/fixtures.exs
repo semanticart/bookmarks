@@ -13,7 +13,7 @@ defmodule BookmarksData.Fixtures do
   end
 
   def vim_html do
-    File.read!("test/fixtures/vim.html")
+    File.read!("#{__DIR__}/../fixtures/vim.html")
   end
 
   def learning_attributes do

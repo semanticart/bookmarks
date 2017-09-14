@@ -1,6 +1,6 @@
 defmodule BookmarksData.MockHTTPLib do
   def get("http://blog.semanticart.com/blog/2017/01/05/lets-write-a-basic-vim-plugin/") do
-    {:ok, File.read!("test/fixtures/vim.html")}
+    {:ok, BookmarksData.Fixtures.vim_html }
   end
   def get("https://twitter.com") do
     simple_response("Twitter")
