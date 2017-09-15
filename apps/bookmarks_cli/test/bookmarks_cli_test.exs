@@ -3,7 +3,6 @@ defmodule BookmarksCLITest do
   doctest BookmarksCLI
 
   import ExUnit.CaptureIO
-  alias BookmarksData.DB
   alias BookmarksData.Fixtures
 
   setup do
@@ -11,8 +10,8 @@ defmodule BookmarksCLITest do
   end
 
   test "it can list all bookmarks" do
-    {:ok, vim} = DB.insert(Fixtures.vim_attributes)
-    {:ok, learning} = DB.insert(Fixtures.learning_attributes)
+    {:ok, vim} = BookmarksData.insert(Fixtures.vim_attributes)
+    {:ok, learning} = BookmarksData.insert(Fixtures.learning_attributes)
 
     assert_output main([]), [vim, learning]
   end
@@ -22,7 +21,7 @@ defmodule BookmarksCLITest do
 
     output = main([uri, "social", "news", "timesink"])
 
-    inserted = DB.get_by(uri: uri)
+    inserted = BookmarksData.get_by(uri: uri)
     # sorted
     assert inserted.tags == ["news", "social", "timesink"]
 
@@ -34,7 +33,7 @@ defmodule BookmarksCLITest do
 
     output = main([uri, "social", "news", "timesink", "-d", "ye olde IM status"])
 
-    inserted = DB.get_by(uri: uri)
+    inserted = BookmarksData.get_by(uri: uri)
     assert inserted.tags == ["news", "social", "timesink"]
     assert inserted.description == "ye olde IM status"
 
@@ -42,52 +41,52 @@ defmodule BookmarksCLITest do
   end
 
   test "it can find bookmarks by tags" do
-    {:ok, vim} = DB.insert(Fixtures.vim_attributes)
-    {:ok, learning} = DB.insert(Fixtures.learning_attributes)
+    {:ok, vim} = BookmarksData.insert(Fixtures.vim_attributes)
+    {:ok, learning} = BookmarksData.insert(Fixtures.learning_attributes)
 
     assert_output(main(["read"]), [vim, learning])
     assert_output(main(learning.tags), [learning])
   end
 
   test "it can add to a bookmark's tags by id" do
-    {:ok, original} = DB.insert(Fixtures.vim_attributes)
+    {:ok, original} = BookmarksData.insert(Fixtures.vim_attributes)
     assert original.tags == ["read", "vim"]
 
     output = main(["--tag", original.id, "semanticart", "mine"])
 
-    updated = DB.get_by(id: original.id)
+    updated = BookmarksData.get_by(id: original.id)
     assert updated.tags == ["mine", "read", "semanticart", "vim"]
 
     assert_output(output, updated)
   end
 
   test "it can remove from a bookmark's tags by id" do
-    {:ok, original} = DB.insert(Fixtures.vim_attributes)
+    {:ok, original} = BookmarksData.insert(Fixtures.vim_attributes)
     assert original.tags == ["read", "vim"]
 
     # remove an actual tag and ignore one that wasn't present
     output = main(["--untag", original.id, "read", "mine"])
 
-    updated = DB.get_by(id: original.id)
+    updated = BookmarksData.get_by(id: original.id)
     assert updated.tags == ["vim"]
 
     assert_output(output, updated)
   end
 
   test "it can mark a bookmark read by id" do
-    {:ok, original} = DB.insert(Fixtures.vim_attributes)
+    {:ok, original} = BookmarksData.insert(Fixtures.vim_attributes)
     assert original.tags == ["read", "vim"]
 
     output = main(["--markread", original.id])
 
-    updated = DB.get_by(id: original.id)
+    updated = BookmarksData.get_by(id: original.id)
     assert updated.tags == ["vim"]
 
     assert_output(output, updated)
   end
 
   test "it can display a bookmark's source text by id" do
-    {:ok, inserted} = DB.insert(Fixtures.vim_attributes)
+    {:ok, inserted} = BookmarksData.insert(Fixtures.vim_attributes)
     output = main(["--read", inserted.id])
 
     assert output == File.read!("#{__DIR__}/fixtures/vim.txt")

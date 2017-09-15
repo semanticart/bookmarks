@@ -1,6 +1,4 @@
 defmodule BookmarksCLI do
-  alias BookmarksData.DB
-
   def main([]), do: all()
   def main(args = [head | tail]) do
     if BookmarksData.URIValidator.valid?(head) do
@@ -40,7 +38,7 @@ defmodule BookmarksCLI do
     parsed = Enum.into(parsed, %{})
     attributes = Map.merge(parsed, %{uri: uri, tags: Enum.sort(tags)})
 
-    {:ok, bookmark} = DB.insert(attributes)
+    {:ok, bookmark} = BookmarksData.insert(attributes)
 
     bookmark
     |> format
@@ -48,30 +46,30 @@ defmodule BookmarksCLI do
   end
 
   defp action({[read: true], [id], []}) do
-    DB.get_by(id: id).data
+    BookmarksData.get_by(id: id).data
     |> Readability.article
     |> Readability.readable_text
     |> IO.puts
   end
   defp action({[markread: true], [id], []}) do
-    bookmark = DB.get_by(id: id)
-    {:ok, updated} = DB.mark_read(bookmark)
+    bookmark = BookmarksData.get_by(id: id)
+    {:ok, updated} = BookmarksData.mark_read(bookmark)
 
     updated
     |> format
     |> IO.puts
   end
   defp action({[tag: true], [id | tags], []}) do
-    bookmark = DB.get_by(id: id)
-    {:ok, updated} = DB.update(bookmark, %{tags: bookmark.tags ++ tags})
+    bookmark = BookmarksData.get_by(id: id)
+    {:ok, updated} = BookmarksData.update(bookmark, %{tags: bookmark.tags ++ tags})
 
     updated
     |> format
     |> IO.puts
   end
   defp action({[untag: true], [id | tags], []}) do
-    bookmark = DB.get_by(id: id)
-    {:ok, updated} = DB.update(bookmark, %{tags: bookmark.tags -- tags})
+    bookmark = BookmarksData.get_by(id: id)
+    {:ok, updated} = BookmarksData.update(bookmark, %{tags: bookmark.tags -- tags})
 
     updated
     |> format
@@ -79,13 +77,13 @@ defmodule BookmarksCLI do
   end
   defp action({[], tags, []}) do
     tags
-    |> DB.tagged
+    |> BookmarksData.tagged
     |> format
     |> IO.puts
   end
 
   def all do
-    DB.all
+    BookmarksData.all
     |> format
     |> IO.puts
   end

@@ -42,7 +42,7 @@ defmodule BookmarksData.BookmarkTest do
   end
 
   test "changeset validates uri uniqueness" do
-    {:ok, _} = BookmarksData.DB.insert(Fixtures.vim_attributes)
+    {:ok, _} = BookmarksData.insert(Fixtures.vim_attributes)
     changeset = BookmarksData.Bookmark.changeset(Fixtures.vim_attributes)
 
     assert [
