@@ -16,12 +16,7 @@ defmodule Bookmarks.Mixfile do
   # Run "mix help deps" for examples and options.
   defp deps do
     [
-      {:ecto, "~> 2.1"},
       {:ex_doc, "~> 0.16", only: :dev, runtime: false},
-      {:floki, "~> 0.14"},
-      {:httpoison, "~> 0.13"},
-      {:poison, "~> 3.1"},
-      {:postgrex, ">= 0.0.0"},
     ]
   end
 end
