@@ -48,7 +48,7 @@ defmodule BookmarksCLI.Formatter do
   defp format_index(index, padding) do
     [
       :bright,
-      :cyan,
+      :magenta,
       Integer.to_string(index),
       String.pad_trailing(".", padding - number_width(index) - 1),
     ]
@@ -57,7 +57,7 @@ defmodule BookmarksCLI.Formatter do
   defp format_title(title) do
     [
       :bright,
-      :light_green,
+      :cyan,
       title,
       "\n",
       :reset,
@@ -67,8 +67,7 @@ defmodule BookmarksCLI.Formatter do
   defp prefixed(_prefix, nil, _padding), do: []
   defp prefixed(prefix, content, padding) do
     [
-      :bright,
-      :red,
+      :light_green,
       String.pad_leading(prefix, padding),
       " ",
       :reset,

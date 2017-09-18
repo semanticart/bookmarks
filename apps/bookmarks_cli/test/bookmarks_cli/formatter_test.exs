@@ -10,11 +10,11 @@ defmodule BookmarksCLI.FormatterTest do
 
   test "format w/ no description" do
     expected = [
-      [:bright, :cyan, "1", ". "],
-      [:bright, :light_green, @vim.title, "\n", :reset],
-      [:bright, :red, "   >", " ", :reset, @vim.uri, "\n"],
+      [:bright, :magenta, "1", ". "],
+      [:bright, :cyan, @vim.title, "\n", :reset],
+      [:light_green, "   >", " ", :reset, @vim.uri, "\n"],
       [],
-      [:bright, :red, "   #", " ", :reset, format_tags(@vim), "\n"]
+      [:light_green, "   #", " ", :reset, format_tags(@vim), "\n"]
     ]
 
     assert expected == Formatter.format(@vim)
@@ -24,11 +24,11 @@ defmodule BookmarksCLI.FormatterTest do
     bookmark = @vim_with_description
 
     expected = [
-      [:bright, :cyan, "1", ". "],
-      [:bright, :light_green, bookmark.title, "\n", :reset],
-      [:bright, :red, "   >", " ", :reset, bookmark.uri, "\n"],
-      [:bright, :red, "   +", " ", :reset, bookmark.description, "\n"],
-      [:bright, :red, "   #",  " ", :reset, format_tags(bookmark), "\n"]
+      [:bright, :magenta, "1", ". "],
+      [:bright, :cyan, bookmark.title, "\n", :reset],
+      [:light_green, "   >", " ", :reset, bookmark.uri, "\n"],
+      [:light_green, "   +", " ", :reset, bookmark.description, "\n"],
+      [:light_green, "   #",  " ", :reset, format_tags(bookmark), "\n"]
     ]
 
     assert expected == Formatter.format(bookmark)
@@ -38,11 +38,11 @@ defmodule BookmarksCLI.FormatterTest do
     bookmark = @vim
 
     expected = [
-      [:bright, :cyan, "123456", ". "],
-      [:bright, :light_green, bookmark.title, "\n", :reset],
-      [:bright, :red, "        >", " ", :reset, bookmark.uri, "\n"],
+      [:bright, :magenta, "123456", ". "],
+      [:bright, :cyan, bookmark.title, "\n", :reset],
+      [:light_green, "        >", " ", :reset, bookmark.uri, "\n"],
       [],
-      [:bright, :red, "        #", " ", :reset, format_tags(bookmark), "\n"]
+      [:light_green, "        #", " ", :reset, format_tags(bookmark), "\n"]
     ]
 
     bookmark = %{bookmark | id: 123456}
