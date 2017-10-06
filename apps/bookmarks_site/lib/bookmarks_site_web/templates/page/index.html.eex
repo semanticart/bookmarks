@@ -1,0 +1,21 @@
+<div class="jumbotron">
+  <h2><%= gettext "%{name}!", name: page_title(@conn) %></h2>
+  <p class="lead">Keep track of &hellip; well, bookmarks.</p>
+</div>
+
+<ul>
+  <%= for bookmark <- @bookmarks do %>
+    <li class="row">
+      <div class="col-lg-9">
+        <%= link bookmark.title, to: bookmark.uri, target: "_blank", rel: "noopener" %>
+      </div>
+      <div class="col-lg-3">
+        <ul class="tags">
+          <%= for tag <- bookmark.tags do %>
+            <li><%= link tag, to: "/tags/#{tag}" %></li>
+          <% end %>
+        </ul>
+      </div>
+    </li>
+  <% end %>
+</ul>
